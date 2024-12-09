@@ -1,3 +1,5 @@
+import { DealerDetails } from '../context/vehicleTypes';
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 export interface VehicleImage {
@@ -49,23 +51,15 @@ export interface VehicleAttributes {
 export interface VehicleResponse {
   data: Array<{
     attributes: VehicleAttributes;
+    relationships: {
+      seller: {
+        data: {
+          id: string;
+          type: string;
+        };
+      };
+    };
   }>;
-}
-
-interface DealerResponse {
-  id: string;
-  name: string;
-  address: string;
-  phone: string;
-  email: string;
-  website: string;
-  rating: number;
-  reviews: number;
-  location: {
-    city: string;
-    state: string;
-    country: string;
-  };
 }
 
 export const getVehicleDetails = async (vehicleId: string): Promise<VehicleResponse> => {
@@ -86,9 +80,9 @@ export const getVehicleDetails = async (vehicleId: string): Promise<VehicleRespo
   }
 };
 
-export const fetchDealer = async (id: string): Promise<DealerResponse> => {
+export const fetchDealer = async (id: string): Promise<DealerDetails> => {
   try {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/dealer/${id}`);
+    const response = await fetch(`${API_URL}/dealer/${id}`);
     
     if (!response.ok) {
       throw new Error(`Failed to fetch dealer: ${response.statusText}`);
