@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getVehicleDetails } from '../services/api';
+import { getVehicleDetails, fetchDealer } from '../services/api';
 import { VehicleContextType, VEHICLE_ID } from './vehicleTypes';
 
 const VehicleContextInternal = createContext<VehicleContextType | undefined>(undefined);
 
 export const VehicleProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [vehicleDetails, setVehicleDetails] = useState<VehicleContextType['vehicleDetails']>(null);
+  const [dealerDetails, setDealerDetails] = useState<VehicleContextType['dealerDetails']>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,11 +15,15 @@ export const VehicleProvider: React.FC<{ children: ReactNode }> = ({ children })
       setLoading(true);
       
       // Check session storage first
-      const cachedData = sessionStorage.getItem(`vehicle_${VEHICLE_ID}`);
-      if (cachedData) {
+      const cachedVehicleData = sessionStorage.getItem(`vehicle_${VEHICLE_ID}`);
+      const cachedDealerData = sessionStorage.getItem(`dealer_${VEHICLE_ID}`);
+      
+      if (cachedVehicleData && cachedDealerData) {
         try {
-          const parsedData = JSON.parse(cachedData);
-          setVehicleDetails(parsedData);
+          const parsedVehicleData = JSON.parse(cachedVehicleData);
+          const parsedDealerData = JSON.parse(cachedDealerData);
+          setVehicleDetails(parsedVehicleData);
+          setDealerDetails(parsedDealerData);
           setLoading(false);
           return;
         } catch (error) {
@@ -35,8 +40,19 @@ export const VehicleProvider: React.FC<{ children: ReactNode }> = ({ children })
         
         if (vehicleData) {
           setVehicleDetails(vehicleData);
-          // Store in session storage
+          // Store vehicle data in session storage
           sessionStorage.setItem(`vehicle_${VEHICLE_ID}`, JSON.stringify(vehicleData));
+
+          // Fetch dealer details using seller_id
+          try {
+            const dealerData = await fetchDealer(response.data[0].relationships.seller.data.id);
+            setDealerDetails(dealerData);
+            // Store dealer data in session storage
+            sessionStorage.setItem(`dealer_${VEHICLE_ID}`, JSON.stringify(dealerData));
+          } catch (dealerError) {
+            console.error('Error fetching dealer details:', dealerError);
+            // Don't set error state here to allow vehicle data to still be displayed
+          }
         } else {
           setError('No vehicle data found');
         }
@@ -52,17 +68,17 @@ export const VehicleProvider: React.FC<{ children: ReactNode }> = ({ children })
   }, []);
 
   return (
-    <VehicleContextInternal.Provider value={{ vehicleDetails, loading, error }}>
+    <VehicleContextInternal.Provider value={{ vehicleDetails, dealerDetails, loading, error }}>
       {children}
     </VehicleContextInternal.Provider>
   );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useVehicleContext = () => {
+export const useVehicle = () => {
   const context = useContext(VehicleContextInternal);
   if (context === undefined) {
-    throw new Error('useVehicleContext must be used within a VehicleProvider');
+    throw new Error('useVehicle must be used within a VehicleProvider');
   }
   return context;
 };
